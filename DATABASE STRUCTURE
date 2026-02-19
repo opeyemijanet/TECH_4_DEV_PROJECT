@@ -1,0 +1,85 @@
+CREATE TABLE expense_anomalies (
+    anomaly_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id UUID NOT NULL,
+    business_id UUID NOT NULL,
+    anomaly_level VARCHAR(20) CHECK (anomaly_level IN ('High', 'Medium', 'Normal')),
+    z_score NUMERIC(6,3),
+    deviation_percentage NUMERIC(6,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (transaction_id) REFERENCES transactions(transaction_id) ON DELETE CASCADE,
+    FOREIGN KEY (business_id) REFERENCES businesses(business_id) ON DELETE CASCADE
+);
+CREATE TABLE inventory_expiry_alerts (
+    alert_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL,
+    item_id UUID NOT NULL,
+    risk_level VARCHAR(20) CHECK (risk_level IN ('Critical', 'Warning', 'OK')),
+    days_until_expiry INTEGER,
+    value_at_risk NUMERIC(15,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (business_id) REFERENCES businesses(business_id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES inventory(item_id) ON DELETE CASCADE
+);
+CREATE TABLE cashflow_predictions (
+    prediction_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL,
+    risk_level VARCHAR(20) CHECK (risk_level IN ('Critical', 'Warning', 'OK', 'Stable')),
+    days_until_broke INTEGER,
+    confidence_score NUMERIC(5,2),
+    avg_daily_income NUMERIC(15,2),
+    avg_daily_expense NUMERIC(15,2),
+    burn_rate NUMERIC(15,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (business_id) REFERENCES businesses(business_id) ON DELETE CASCADE
+);
+CREATE INDEX idx_inventory_expiry
+ON inventory (business_id, expiry_date);
+CREATE TABLE inventory (
+    item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL,
+    item_name VARCHAR(200) NOT NULL,
+    quantity NUMERIC(10,2) NOT NULL CHECK (quantity > 0),
+    unit VARCHAR(50) NOT NULL,
+    expiry_date DATE NOT NULL,
+    purchase_price NUMERIC(10,2),
+    category VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (business_id) REFERENCES businesses(business_id) ON DELETE CASCADE
+);
+CREATE INDEX idx_transactions_business_date
+ON transactions (business_id, transaction_date);
+
+CREATE INDEX idx_transactions_type
+ON transactions (type);
+CREATE TABLE transactions (
+    transaction_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL,
+    transaction_date TIMESTAMP NOT NULL,
+    type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense')),
+    amount NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+    category VARCHAR(100),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (business_id) REFERENCES businesses(business_id) ON DELETE CASCADE
+);
+CREATE TABLE users (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL,
+    full_name VARCHAR(150) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    role VARCHAR(50) DEFAULT 'owner',
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (business_id) REFERENCES businesses(business_id) ON DELETE CASCADE
+);
+CREATE TABLE businesses (
+    business_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_name VARCHAR(200) NOT NULL,
+    business_type VARCHAR(100),
+    established_date DATE,
+    currency VARCHAR(3) DEFAULT 'NGN',
+    timezone VARCHAR(50) DEFAULT 'Africa/Lagos',
+    current_balance NUMERIC(15,2) DEFAULT 0 CHECK (current_balance >= 0),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
